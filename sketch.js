@@ -1,18 +1,23 @@
 //Create variables here
 var dog, happyDog, dogSprite, fridge, thefridge;
-var dogName = prompt("Name your virtual dog");
 var database;
 var foodS, hour;
 var hungriness = 0;
-var fedTime, lastFed;
+var fedTime, lastFed, currentTime, fedMinute, lastMinute;
 var feed;
 var addFood;
+var readState, changeState, gamestate;
+var bedroomImg, gardenImg, bathroomImg, livingImg;
 
 function preload(){
   //load images here
    dog = loadImage("Dog.png");
-   happyDog = loadImage("happydog.png");
+   happyDog = loadImage("Happy.png");
    fridge = loadImage("fridge.jpg");
+   bedroomImg = loadImage("BedRoom.png");
+   gardenImg = loadImage("Garden.png");
+   bathroomImg = loadImage("WashRoom.png");
+   livingImg = loadImage("LivingRoom.png");
 }
 
 function setup() {
@@ -25,13 +30,18 @@ function setup() {
 
   thefridge = createSprite(215,300,50,50);
   thefridge.scale = 0.3;
-  thefridge.addImage(fridge);
+  thefridge.addImage(fridge); 
 
-  
+  readState = database.ref("gameState");
+  readState.on("value",function(data){
+    gamestate = data.val();
+  })
+
   foodStock = database.ref("food");
   //.ref is used to creating a reference
   foodStock.on("value",readStock);
   //.on is creating a listener
+
 
   food = new Food(300,50,50,50);
 
@@ -54,12 +64,16 @@ function draw() {
   textSize(30);
   text("Food: "+foodS,150,50);
 
-  food.display();
 
   fedTime = database.ref("feedTime");
   fedTime.on("value",function(data){
     lastFed = data.val();
   })
+
+  fedMinute = database.ref("feedMinute");
+  fedMinute.on("value",function(data){
+    lastMinute = data.val();
+  }) 
 
   if(lastFed >= 12){
     text("Last Fed: "+ lastFed%12 + " PM",400,50);
@@ -75,8 +89,42 @@ function draw() {
     text("Refrigerator full",120,600);
   }
 
-  textSize(36);
-  text(dogName,500,650);
+  currentTime = minute();
+
+  if(currentTime == (lastMinute + 1)){
+    updateFunction(1);
+    food.garden();
+  }
+  else if(currentTime == (lastMinute + 2)){
+    updateFunction(2);
+    food.bedroom();
+  }
+  else if(currentTime > (lastMinute + 2) && currentTime <= (lastMinute + 4)){
+    updateFunction(3);
+    food.bathroom();
+  }
+  else if(currentTime > (lastMinute + 4) || currentTime < lastMinute){
+    updateFunction(4);
+    food.display();
+  }
+  else{
+    updateFunction(0);
+    food.living();
+  }
+
+  if(gamestate != 4){
+    feed.hide();
+    addFood.hide();
+    dogSprite.visible = false;
+    thefridge.visible = false;
+  }
+  else{
+    feed.show();
+    addFood.show();
+    dogSprite.visible = true;
+    thefridge.visible = true;
+  }
+  console.log(minute)
 
 }
 
@@ -98,17 +146,18 @@ function writeStock(meme){
 }
 
 function feedDog(){
-  dogSprite.addImage(happyDog);
+//  dogSprite.addImage(happyDog);
   foodS -= 1;
 
   database.ref("/").update({
     food: foodS,
-    feedTime: hour()
-  }) 
+    feedTime: hour(),
+    feedMinute: minute()
+    }) 
 }
 
 function increaseFood(){
-  dogSprite.addImage(dog);
+//  dogSprite.addImage(dog);
 
   if(foodS < 40){
 
@@ -118,5 +167,11 @@ function increaseFood(){
     food: foodS
   }) 
   }
+}
+
+function updateFunction(state){
+  database.ref("/").update({
+    gameState: state
+  })
 }
 
